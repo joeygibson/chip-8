@@ -9,13 +9,13 @@ pub struct Chip8 {
     op_code: u16,
     memory: [u8; 4096],
     v: [u8; 16],
-    i: u16,
+    i: usize,
     pc: usize,
     gfx: [u8; 64 * 32],
     delay_timer: u8,
     sound_timer: u8,
     stack: [u16; 16],
-    sp: u16,
+    sp: usize,
     key: [u8; 16],
 }
 
@@ -61,9 +61,53 @@ impl Chip8 {
         self.op_code = (self.memory[self.pc] << 8 | self.memory[self.pc + 1]).into();
 
         match self.op_code & 0xF000 {
-            // 0xANNN: sets I to the address NNN
+            0x0000 => {
+                // two special opcodes that can't be determined by the
+                // top four bits
+                match self.op_code & 0x000F {
+                    0x0000 => { // 0x00E0; clear the screen
+                    }
+                    0x000E => { // 0x00EE; returns from subroutine
+                    }
+                    _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", self.op_code),
+                }
+            }
             0xA000 => {
-                self.i = self.op_code & 0x0FFF;
+                // 0xANNN: sets I to the address NNN
+                self.i = (self.op_code & 0x0FFF) as usize;
+                self.pc += 2;
+            }
+            0x1000 => { // 0x1NNN: jumps to address NNN
+            }
+            0x2000 => {
+                // 0x2NNN: calls subroutine at NNN
+                self.stack[self.sp] = self.pc as u16;
+                self.sp += 1;
+                self.pc = (self.op_code & 0x0FFF) as usize;
+            }
+
+            // more opcodes...
+            0x0004 => {
+                // 0x8XY4: adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+                let y = ((self.op_code & 0x00F0) >> 4) as usize;
+                let x = ((self.op_code & 0x0F00) >> 8) as usize;
+
+                if self.v[y] > (0xFF - self.v[x]) {
+                    self.v[0xF] = 1; // carry the 1
+                } else {
+                    self.v[0xF] = 0;
+                }
+
+                self.v[x] += self.v[y];
+                self.pc += 2;
+            }
+
+            0x0033 => {
+                // 0xFX33:
+                let index: usize = ((self.op_code & 0x0F00) >> 8) as usize;
+                self.memory[self.i] = self.v[index] / 100;
+                self.memory[self.i + 1] = (self.v[index] / 10) % 10;
+                self.memory[self.i + 2] = (self.v[index] % 100) / 10;
                 self.pc += 2;
             }
 
