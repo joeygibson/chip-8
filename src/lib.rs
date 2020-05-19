@@ -17,6 +17,7 @@ pub struct Chip8 {
     stack: [u16; 16],
     sp: usize,
     key: [u8; 16],
+    draw_flag: bool,
 }
 
 impl Chip8 {
@@ -33,11 +34,12 @@ impl Chip8 {
             stack: [0; 16],
             sp: 0,
             key: [0; 16],
+            draw_flag: false,
         };
 
-        // Load fonts0et
+        // Load fontset
         for i in 1..80 {
-            // chip8.memory[i] = chip8_fontset[i];
+            chip8.memory[i] = CHIP8_FONTSET[i];
         }
 
         chip8
@@ -111,6 +113,34 @@ impl Chip8 {
                 self.pc += 2;
             }
 
+            0xD000 => {
+                // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
+                let x = self.v[((self.op_code & 0x0F00) >> 8) as usize];
+                let y = self.v[((self.op_code * 0x00F0) >> 4) as usize];
+                let height: usize = (self.op_code & 0x000F) as usize;
+
+                self.v[0xF] = 0;
+
+                for y_line in 0..height {
+                    let pixel: u16 = self.memory[self.i + y_line] as u16;
+
+                    for x_line in 0..8 {
+                        if (pixel & 0x80 >> x_line) != 0 {
+                            if self.gfx[(x + x_line as u8 + ((y + y_line as u8) * 64)) as usize]
+                                == 1
+                            {
+                                self.v[0xF] = 1;
+                            }
+
+                            self.gfx[(x + x_line as u8 + ((y + y_line as u8) * 64)) as usize] ^= 1;
+                        }
+                    }
+                }
+
+                self.draw_flag = true;
+                self.pc += 2;
+            }
+
             // more opcodes
             _ => panic!("unknown opcode"),
         }
@@ -129,3 +159,22 @@ impl Chip8 {
         }
     }
 }
+
+static CHIP8_FONTSET: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+];
