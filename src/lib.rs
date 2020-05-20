@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io;
-use std::io::{Error, Read};
+use std::io::Read;
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
@@ -70,15 +70,8 @@ impl Chip8 {
     }
 
     fn process_opcode(&mut self, opcode: u16) {
-        let op_1 = (opcode & 0xF000) >> 12;
-        let op_2 = (opcode & 0x0F00) >> 8;
-        let op_3 = (opcode & 0x00F0) >> 4;
-        let op_4 = opcode & 0x000F;
-
         let x = ((opcode & 0x0F00) >> 8) as usize;
         let y = ((opcode & 0x00F0) >> 4) as usize;
-        let vx = self.v[x];
-        let vy = self.v[y];
         let nnn = opcode & 0x0FFF;
         let nn = (opcode & 0x00FF) as u8;
         let n = (opcode & 0x000F) as u8;
@@ -230,7 +223,7 @@ impl Chip8 {
             0xC000 => {
                 // 0xCXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
                 let r: u8 = rand::random();
-                self.v[x] = (r % (0xFF + 1)) | nn;
+                self.v[x] = r | nn;
             }
 
             0xD000 => {
@@ -386,4 +379,16 @@ static CHIP8_FONTSET: [u8; 80] = [
 
 fn read_word(memory: [u8; 4096], index: u16) -> u16 {
     (memory[index as usize] << 8 | memory[(index + 1) as usize]) as u16
+}
+
+pub fn run_loop(chip8: &mut Chip8) {
+    loop {
+        chip8.execute_cycle();
+        draw_graphics(chip8);
+        // chip8.set_keys();
+    }
+}
+
+pub fn draw_graphics(chip8: &mut Chip8) -> io::Result<()> {
+    Ok(())
 }

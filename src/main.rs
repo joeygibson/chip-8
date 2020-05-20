@@ -10,9 +10,11 @@ fn main() {
         exit(1);
     }
 
-    println!("Loading {}...", args[1]);
+    println!("Loading {}...", &args[1]);
 
-    let chip_8 = Chip8::new();
+    let mut chip8 = Chip8::new();
 
-    chip_8.
+    chip8.load_program(&args[1]).unwrap();
+
+    chip8.execute_cycle();
 }
