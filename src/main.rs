@@ -1,4 +1,5 @@
 use std::process::exit;
+use std::str::Chars;
 use std::thread::sleep;
 use std::time::Duration;
 use std::{env, io};
@@ -9,7 +10,6 @@ use easycurses::*;
 use easycurses::{Color, ColorPair};
 
 use chip_8::Chip8;
-use std::str::Chars;
 
 static KEY_MAP: [Input; 16] = [
     Input::Character('1'),
@@ -58,10 +58,10 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses) {
         }
 
         if chip8.draw_flag {
-            draw_graphics(chip8, screen).unwrap();
+            draw_graphics(chip8, screen);
         }
 
-        sleep(Duration::from_millis(1200));
+        // sleep(Duration::from_millis(1200));
     }
 }
 
@@ -74,7 +74,6 @@ fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
         } else {
             for i in 0..16 {
                 if key == KEY_MAP[i as usize] {
-                    println!("KEY: {:?}", key);
                     chip8.key[i as usize] = 1;
                     break;
                 }
@@ -87,10 +86,27 @@ fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
     return true;
 }
 
-pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) -> io::Result<()> {
+pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) {
     chip8.draw_flag = false;
 
-    Ok(())
+    screen.move_rc(0, 0);
+
+    for i in 0..64 {
+        for j in 0..32 {
+            eprintln!("{}, {}, {}", i, j, j + i * 32);
+            let pixel = if chip8.gfx[(j + i * 32) as usize] == 1 {
+                '*'
+            } else {
+                ' '
+            };
+
+            screen.print_char(pixel);
+        }
+
+        screen.move_rc(i, 0);
+    }
+
+    screen.refresh();
 }
 
 pub fn setup_screen() -> EasyCurses {
