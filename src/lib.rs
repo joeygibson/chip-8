@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io;
 use std::io::Read;
+use std::thread::sleep;
+use std::time::Duration;
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
@@ -384,11 +386,19 @@ fn read_word(memory: [u8; 4096], index: u16) -> u16 {
 pub fn run_loop(chip8: &mut Chip8) {
     loop {
         chip8.execute_cycle();
-        draw_graphics(chip8);
+
         // chip8.set_keys();
+
+        if chip8.draw_flag {
+            draw_graphics(chip8).unwrap();
+        }
+
+        sleep(Duration::from_millis(1200));
     }
 }
 
 pub fn draw_graphics(chip8: &mut Chip8) -> io::Result<()> {
+    chip8.draw_flag = false;
+
     Ok(())
 }
