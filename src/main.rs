@@ -1,6 +1,6 @@
 use std::env;
 use std::process::exit;
-use chip_8::Chip8;
+use chip_8::{Chip8, run_loop};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,5 +16,5 @@ fn main() {
 
     chip8.load_program(&args[1]).unwrap();
 
-    chip8.execute_cycle();
+    run_loop(&mut chip8);
 }

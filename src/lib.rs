@@ -378,7 +378,7 @@ static CHIP8_FONTSET: [u8; 80] = [
 ];
 
 fn read_word(memory: [u8; 4096], index: u16) -> u16 {
-    (memory[index as usize] << 8 | memory[(index + 1) as usize]) as u16
+    (memory[index as usize] as u16) << 8 | memory[(index + 1) as usize] as u16
 }
 
 pub fn run_loop(chip8: &mut Chip8) {
