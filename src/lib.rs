@@ -1,24 +1,22 @@
 use std::fs::File;
 use std::io;
 use std::io::Read;
-use std::thread::sleep;
-use std::time::Duration;
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
 // 0x200-0xFFF - Program ROM and work RAM
 pub struct Chip8 {
-    memory: [u8; 4096], // program memory
-    v: [u8; 16],        // registers
-    i: u16,             // index register
-    pc: u16,            // program counter
-    gfx: [u8; 64 * 32], // graphics display
-    delay_timer: u8,    // delay timer
-    sound_timer: u8,    // sound timer
-    stack: [u16; 16],   // program stack
-    sp: u8,             // stack pointer
-    key: [u8; 16],      // keyboard
-    draw_flag: bool,    // drawing flag
+    memory: [u8; 4096],     // program memory
+    v: [u8; 16],            // registers
+    i: u16,                 // index register
+    pc: u16,                // program counter
+    pub gfx: [u8; 64 * 32], // graphics display
+    delay_timer: u8,        // delay timer
+    sound_timer: u8,        // sound timer
+    stack: [u16; 16],       // program stack
+    sp: u8,                 // stack pointer
+    pub key: [u8; 16],      // keyboard
+    pub draw_flag: bool,    // drawing flag
 }
 
 impl Chip8 {
@@ -358,6 +356,12 @@ impl Chip8 {
             self.sound_timer -= 1;
         }
     }
+
+    pub fn clear_keys(&mut self) {
+        for i in 0..16 {
+            self.key[i as usize] = 0;
+        }
+    }
 }
 
 static CHIP8_FONTSET: [u8; 80] = [
@@ -381,24 +385,4 @@ static CHIP8_FONTSET: [u8; 80] = [
 
 fn read_word(memory: [u8; 4096], index: u16) -> u16 {
     (memory[index as usize] as u16) << 8 | memory[(index + 1) as usize] as u16
-}
-
-pub fn run_loop(chip8: &mut Chip8) {
-    loop {
-        chip8.execute_cycle();
-
-        // chip8.set_keys();
-
-        if chip8.draw_flag {
-            draw_graphics(chip8).unwrap();
-        }
-
-        sleep(Duration::from_millis(1200));
-    }
-}
-
-pub fn draw_graphics(chip8: &mut Chip8) -> io::Result<()> {
-    chip8.draw_flag = false;
-
-    Ok(())
 }

@@ -1,6 +1,34 @@
-use std::env;
 use std::process::exit;
-use chip_8::{Chip8, run_loop};
+use std::thread::sleep;
+use std::time::Duration;
+use std::{env, io};
+
+use easycurses::constants::acs;
+use easycurses::Color::*;
+use easycurses::*;
+use easycurses::{Color, ColorPair};
+
+use chip_8::Chip8;
+use std::str::Chars;
+
+static KEY_MAP: [Input; 16] = [
+    Input::Character('1'),
+    Input::Character('2'),
+    Input::Character('3'),
+    Input::Character('4'),
+    Input::Character('q'),
+    Input::Character('w'),
+    Input::Character('e'),
+    Input::Character('r'),
+    Input::Character('a'),
+    Input::Character('s'),
+    Input::Character('d'),
+    Input::Character('f'),
+    Input::Character('z'),
+    Input::Character('x'),
+    Input::Character('c'),
+    Input::Character('v'),
+];
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -16,5 +44,62 @@ fn main() {
 
     chip8.load_program(&args[1]).unwrap();
 
-    run_loop(&mut chip8);
+    let mut screen = setup_screen();
+
+    run_loop(&mut chip8, &mut screen);
+}
+
+pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses) {
+    loop {
+        chip8.execute_cycle();
+
+        if !process_input(chip8, screen) {
+            break;
+        }
+
+        if chip8.draw_flag {
+            draw_graphics(chip8, screen).unwrap();
+        }
+
+        sleep(Duration::from_millis(1200));
+    }
+}
+
+fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
+    chip8.clear_keys();
+
+    if let Some(key) = screen.get_input() {
+        return if key == Input::Character(27 as char) {
+            false // exit on `Esc`
+        } else {
+            for i in 0..16 {
+                if key == KEY_MAP[i as usize] {
+                    println!("KEY: {:?}", key);
+                    chip8.key[i as usize] = 1;
+                    break;
+                }
+            }
+
+            true
+        };
+    }
+
+    return true;
+}
+
+pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) -> io::Result<()> {
+    chip8.draw_flag = false;
+
+    Ok(())
+}
+
+pub fn setup_screen() -> EasyCurses {
+    let mut screen = EasyCurses::initialize_system().unwrap();
+
+    screen.set_cursor_visibility(CursorVisibility::Invisible);
+    screen.set_echo(false);
+    screen.set_color_pair(colorpair!(White on Black));
+    screen.set_input_mode(InputMode::Character);
+    screen.set_input_timeout(TimeoutMode::Immediate);
+    screen
 }
