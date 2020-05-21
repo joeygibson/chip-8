@@ -87,24 +87,48 @@ fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
 }
 
 pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) {
+    let rows = 34;
+    let cols = 66;
+
     chip8.draw_flag = false;
 
     screen.move_rc(0, 0);
+    screen.print_char(acs::ulcorner());
 
-    for i in 0..64 {
-        for j in 0..32 {
-            eprintln!("{}, {}, {}", i, j, j + i * 32);
-            let pixel = if chip8.gfx[(j + i * 32) as usize] == 1 {
+    for i in 1..cols {
+        screen.move_rc(0, i);
+        screen.print_char(acs::hline());
+    }
+
+    screen.move_rc(0, cols);
+    screen.print_char(acs::urcorner());
+
+    for i in 1..(cols - 1) {
+        for j in 1..(rows - 1) {
+            let adj_i = i - 1;
+            let adj_j = j - 1;
+
+            let pixel = if chip8.gfx[(adj_j + adj_i * 32) as usize] == 1 {
                 '*'
             } else {
                 ' '
             };
 
+            screen.move_rc(j, i);
             screen.print_char(pixel);
         }
-
-        screen.move_rc(i, 0);
     }
+
+    screen.move_rc(rows, 0);
+    screen.print_char(acs::llcorner());
+
+    for i in 1..cols {
+        screen.move_rc(rows, i);
+        screen.print_char(acs::hline());
+    }
+
+    screen.move_rc(rows, cols);
+    screen.print_char(acs::lrcorner());
 
     screen.refresh();
 }
