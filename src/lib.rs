@@ -140,7 +140,8 @@ impl Chip8 {
 
             0x7000 => {
                 // 0x7XNN: Adds NN to VX. (Carry flag is not changed)
-                self.v[x] += nn;
+                // self.v[x] += nn;
+                self.v[x] = ((self.v[x] as u16 + nn as u16) & 0xff) as u8;
             }
 
             0x8000 => {
@@ -285,13 +286,19 @@ impl Chip8 {
 
                         for i in 0..16 {
                             if self.key[i] != 0 {
+                                // eprintln!("KEY PRESSED: {}", i);
                                 self.v[x] = i as u8;
                                 key_pressed = true;
                             }
                         }
 
                         if !key_pressed {
-                            return; // needed?
+                            // eprintln!("{}", "NO KEY PRESSED!");
+                            // If no key was pressed, we need to keep waiting;
+                            // Since `execute_cycle` increments the program counter
+                            // we will decrememt it here, to cancel out the increment
+                            self.pc -= 2;
+                            return;
                         }
                     }
 

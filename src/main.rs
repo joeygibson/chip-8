@@ -50,6 +50,8 @@ fn main() {
 }
 
 pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32) {
+    let mut iteration: u32 = 0;
+
     loop {
         chip8.execute_cycle();
 
@@ -58,10 +60,11 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_off
         }
 
         if chip8.draw_flag {
-            draw_graphics(chip8, screen, x_offset, y_offset);
+            draw_graphics(chip8, screen, x_offset, y_offset, iteration);
         }
 
         sleep(Duration::from_micros(1200));
+        iteration += 1;
     }
 }
 
@@ -92,11 +95,20 @@ fn get_offsets(screen: &EasyCurses) -> (i32, i32) {
     (rows / 2 - 16, cols / 2 - 32)
 }
 
-fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32) {
+fn draw_graphics(
+    chip8: &mut Chip8,
+    screen: &mut EasyCurses,
+    x_offset: i32,
+    y_offset: i32,
+    iteration: u32,
+) {
     let rows = 32;
     let cols = 64;
 
     chip8.draw_flag = false;
+
+    screen.move_rc(0 + x_offset - 1, 0 + y_offset);
+    screen.print(format!("Iteration: {}", iteration));
 
     screen.move_rc(0 + x_offset, 0 + y_offset);
     screen.print_char(acs::ulcorner());
