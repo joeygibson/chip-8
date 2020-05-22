@@ -72,6 +72,8 @@ impl Chip8 {
     fn process_opcode(&mut self, opcode: u16) {
         let x = ((opcode & 0x0F00) >> 8) as usize;
         let y = ((opcode & 0x00F0) >> 4) as usize;
+        let vx = self.v[x] as u16;
+        let vy = self.v[y] as u16;
         let nnn = opcode & 0x0FFF;
         let nn = (opcode & 0x00FF) as u8;
         let n = (opcode & 0x000F) as u8;
@@ -229,8 +231,6 @@ impl Chip8 {
             0xD000 => {
                 // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
                 let height = n;
-                let vx = self.v[x] as u16;
-                let vy = self.v[y] as u16;
 
                 self.v[0xF] = 0;
 
@@ -258,17 +258,17 @@ impl Chip8 {
                 match opcode & 0x00FF {
                     0x009E => {
                         // 0xEX9E: Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
-                        if self.key[x] != 0 {
+                        if self.key[vx as usize] != 0 {
                             self.pc += 2;
                         }
                     }
                     0x00A1 => {
                         // 0xEXA1: Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
-                        if self.key[x] == 0 {
+                        if self.key[vx as usize] == 0 {
                             self.pc += 2;
                         }
                     }
-                    _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", opcode),
+                    _ => panic!("unknown 0xE000 opcode: 0x{:#X?}", opcode),
                 }
             }
 

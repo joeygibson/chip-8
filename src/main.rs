@@ -11,21 +11,21 @@ use easycurses::*;
 use chip_8::Chip8;
 
 static KEY_MAP: [Input; 16] = [
+    Input::Character('x'),
     Input::Character('1'),
     Input::Character('2'),
     Input::Character('3'),
-    Input::Character('4'),
     Input::Character('q'),
     Input::Character('w'),
     Input::Character('e'),
-    Input::Character('r'),
     Input::Character('a'),
     Input::Character('s'),
     Input::Character('d'),
-    Input::Character('f'),
     Input::Character('z'),
-    Input::Character('x'),
     Input::Character('c'),
+    Input::Character('4'),
+    Input::Character('r'),
+    Input::Character('f'),
     Input::Character('v'),
 ];
 
