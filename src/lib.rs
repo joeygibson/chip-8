@@ -367,6 +367,17 @@ impl Chip8 {
             self.key[i as usize] = 0;
         }
     }
+
+    pub fn to_string(&self) -> String {
+        let mut rows: Vec<String> = vec![];
+
+        for row in self.gfx.chunks(64) {
+            let s: String = row.iter().map(|c| if *c == 1 {'*'} else {' '}).collect();
+            rows.push(s.clone());
+        }
+
+        rows.join("\n")
+    }
 }
 
 static CHIP8_FONTSET: [u8; 80] = [

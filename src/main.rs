@@ -1,12 +1,12 @@
+use std::env;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;
-use std::env;
 
 use easycurses::constants::acs;
 use easycurses::Color::*;
-use easycurses::*;
 use easycurses::ColorPair;
+use easycurses::*;
 
 use chip_8::Chip8;
 
@@ -44,11 +44,12 @@ fn main() {
     chip8.load_program(&args[1]).unwrap();
 
     let mut screen = setup_screen();
+    let (x_offset, y_offset) = get_offsets(&screen);
 
-    run_loop(&mut chip8, &mut screen);
+    run_loop(&mut chip8, &mut screen, x_offset, y_offset);
 }
 
-pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses) {
+pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32) {
     loop {
         chip8.execute_cycle();
 
@@ -57,7 +58,7 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses) {
         }
 
         if chip8.draw_flag {
-            draw_graphics(chip8, screen);
+            draw_graphics(chip8, screen, x_offset, y_offset);
         }
 
         sleep(Duration::from_micros(1200));
@@ -85,25 +86,31 @@ fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
     return true;
 }
 
-pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) {
+fn get_offsets(screen: &EasyCurses) -> (i32, i32) {
+    let (rows, cols) = screen.get_row_col_count();
+
+    (rows / 2 - 16, cols / 2 - 32)
+}
+
+fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32) {
     let rows = 32;
     let cols = 64;
 
     chip8.draw_flag = false;
 
-    screen.move_rc(0, 0);
+    screen.move_rc(0 + x_offset, 0 + y_offset);
     screen.print_char(acs::ulcorner());
 
     for i in 0..=cols {
-        screen.move_rc(0, i + 1);
+        screen.move_rc(0 + x_offset, i + 1 + y_offset);
         screen.print_char(acs::hline());
     }
 
-    screen.move_rc(0, cols + 2);
+    screen.move_rc(0 + x_offset, cols + 1 + y_offset);
     screen.print_char(acs::urcorner());
 
     for r in 0..rows {
-        screen.move_rc(r + 1, 0);
+        screen.move_rc(r + 1 + x_offset, 0 + y_offset);
         screen.print_char(acs::vline());
 
         for c in 0..cols {
@@ -113,23 +120,23 @@ pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) {
                 ' '
             };
 
-            screen.move_rc(r + 1, c + 1);
+            screen.move_rc(r + 1 + x_offset, c + 1 + y_offset);
             screen.print_char(pixel);
         }
 
-        screen.move_rc(r + 1, cols + 2);
+        screen.move_rc(r + 1 + x_offset, cols + 1 + y_offset);
         screen.print_char(acs::vline());
     }
 
-    screen.move_rc(rows + 1, 0);
+    screen.move_rc(rows + 1 + x_offset, 0 + y_offset);
     screen.print_char(acs::llcorner());
 
     for i in 0..=cols {
-        screen.move_rc(rows + 1, i + 1);
+        screen.move_rc(rows + 1 + x_offset, i + 1 + y_offset);
         screen.print_char(acs::hline());
     }
 
-    screen.move_rc(rows + 1, cols + 2);
+    screen.move_rc(rows + 1 + x_offset, cols + 1 + y_offset);
     screen.print_char(acs::lrcorner());
 
     screen.refresh();
