@@ -36,7 +36,7 @@ impl Chip8 {
         };
 
         // Load fontset
-        for i in 1..80 {
+        for i in 0..79 {
             chip8.memory[i] = CHIP8_FONTSET[i];
         }
 
