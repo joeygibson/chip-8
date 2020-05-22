@@ -229,6 +229,8 @@ impl Chip8 {
             0xD000 => {
                 // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
                 let height = n;
+                let vx = self.v[x] as u16;
+                let vy = self.v[y] as u16;
 
                 self.v[0xF] = 0;
 
@@ -237,11 +239,14 @@ impl Chip8 {
 
                     for xline in 0..8 {
                         if (pixel & (0x80 >> xline)) != 0 {
-                            if self.gfx[(x + xline as usize + ((y + yline as usize) * 64))] == 1 {
+                            if self.gfx[(vx + xline as u16 + ((vy + yline as u16) * 64)) as usize]
+                                == 1
+                            {
                                 self.v[0xF] = 1;
                             }
 
-                            self.gfx[x + xline as usize + ((y + yline as usize) * 64)] ^= 1;
+                            self.gfx[(vx + xline as u16 + ((vy + yline as u16) * 64)) as usize] ^=
+                                1;
                         }
                     }
                 }

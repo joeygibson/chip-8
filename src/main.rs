@@ -1,13 +1,12 @@
 use std::process::exit;
-use std::str::Chars;
 use std::thread::sleep;
 use std::time::Duration;
-use std::{env, io};
+use std::env;
 
 use easycurses::constants::acs;
 use easycurses::Color::*;
 use easycurses::*;
-use easycurses::{Color, ColorPair};
+use easycurses::ColorPair;
 
 use chip_8::Chip8;
 
@@ -61,7 +60,7 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses) {
             draw_graphics(chip8, screen);
         }
 
-        // sleep(Duration::from_millis(1200));
+        sleep(Duration::from_micros(1200));
     }
 }
 
@@ -87,47 +86,50 @@ fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
 }
 
 pub fn draw_graphics(chip8: &mut Chip8, screen: &mut EasyCurses) {
-    let rows = 34;
-    let cols = 66;
+    let rows = 32;
+    let cols = 64;
 
     chip8.draw_flag = false;
 
     screen.move_rc(0, 0);
     screen.print_char(acs::ulcorner());
 
-    for i in 1..cols {
-        screen.move_rc(0, i);
+    for i in 0..=cols {
+        screen.move_rc(0, i + 1);
         screen.print_char(acs::hline());
     }
 
-    screen.move_rc(0, cols);
+    screen.move_rc(0, cols + 2);
     screen.print_char(acs::urcorner());
 
-    for i in 1..(cols - 1) {
-        for j in 1..(rows - 1) {
-            let adj_i = i - 1;
-            let adj_j = j - 1;
+    for r in 0..rows {
+        screen.move_rc(r + 1, 0);
+        screen.print_char(acs::vline());
 
-            let pixel = if chip8.gfx[(adj_j + adj_i * 32) as usize] == 1 {
+        for c in 0..cols {
+            let pixel = if chip8.gfx[(c + r * cols) as usize] == 1 {
                 '*'
             } else {
                 ' '
             };
 
-            screen.move_rc(j, i);
+            screen.move_rc(r + 1, c + 1);
             screen.print_char(pixel);
         }
+
+        screen.move_rc(r + 1, cols + 2);
+        screen.print_char(acs::vline());
     }
 
-    screen.move_rc(rows, 0);
+    screen.move_rc(rows + 1, 0);
     screen.print_char(acs::llcorner());
 
-    for i in 1..cols {
-        screen.move_rc(rows, i);
+    for i in 0..=cols {
+        screen.move_rc(rows + 1, i + 1);
         screen.print_char(acs::hline());
     }
 
-    screen.move_rc(rows, cols);
+    screen.move_rc(rows + 1, cols + 2);
     screen.print_char(acs::lrcorner());
 
     screen.refresh();
