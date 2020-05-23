@@ -62,7 +62,23 @@ impl Chip8 {
 
         self.process_opcode(opcode);
 
+        self.update_timers();
+
         self.update_program_counter()
+    }
+
+    fn update_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+
+        if self.sound_timer > 0 {
+            if self.sound_timer == 1 {
+                println!("BEEP!");
+            }
+
+            self.sound_timer -= 1;
+        }
     }
 
     fn update_program_counter(&mut self) {
@@ -77,6 +93,8 @@ impl Chip8 {
         let nnn = opcode & 0x0FFF;
         let nn = (opcode & 0x00FF) as u8;
         let n = (opcode & 0x000F) as u8;
+
+        eprintln!("opcode: {:#X?}", opcode);
 
         match opcode & 0xF000 {
             0x0000 => {
@@ -96,7 +114,10 @@ impl Chip8 {
                         self.sp -= 1;
                         self.pc = self.stack[self.sp as usize];
                     }
-                    _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", opcode),
+                    _ => {
+                        // 0x0NNN: Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
+                        self.pc = nnn;
+                    } // _ => panic!("unknown 0x0000 opcode: {:#X?}", opcode),
                 }
             }
 
@@ -170,7 +191,7 @@ impl Chip8 {
                             self.v[0xF] = 0;
                         }
 
-                        self.v[x] += self.v[y];
+                        self.v[x] = ((self.v[x] as u16 + self.v[y] as u16) & 0xff) as u8;
                     }
                     0x5 => {
                         // 0x8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
@@ -180,7 +201,16 @@ impl Chip8 {
                             self.v[0xF] = 1;
                         }
 
-                        self.v[x] -= self.v[y];
+                        let tx = self.v[x];
+                        let ty = self.v[y];
+
+                        let tz = if ty > tx {
+                            ((tx as i16 - ty as i16).abs() as u8) - 1
+                        } else {
+                            tx - ty
+                        };
+
+                        self.v[x] = tz;
                     }
                     0x6 => {
                         // 0x8XY6: Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
@@ -202,7 +232,7 @@ impl Chip8 {
                         self.v[0xF] = self.v[x] >> 7;
                         self.v[x] <<= 1;
                     }
-                    _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", opcode),
+                    _ => panic!("unknown 0x8000 opcode: {:#X?}", opcode),
                 }
             }
 
@@ -269,7 +299,7 @@ impl Chip8 {
                             self.pc += 2;
                         }
                     }
-                    _ => panic!("unknown 0xE000 opcode: 0x{:#X?}", opcode),
+                    _ => panic!("unknown 0xE000 opcode: {:#X?}", opcode),
                 }
             }
 
@@ -348,24 +378,11 @@ impl Chip8 {
                             self.v[i] = self.memory[(self.i + i as u16) as usize];
                         }
                     }
-                    _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", opcode),
+                    _ => panic!("unknown 0xF000 opcode: {:#X?}", opcode),
                 }
             }
 
-            _ => panic!("unknown opcode [0x0000]: 0x{:#X?}", opcode),
-        }
-
-        // update timers
-        if self.delay_timer > 0 {
-            self.delay_timer -= 1;
-        }
-
-        if self.sound_timer > 0 {
-            if self.sound_timer == 1 {
-                println!("BEEP!");
-            }
-
-            self.sound_timer -= 1;
+            _ => panic!("unknown opcode: {:#X?}", opcode),
         }
     }
 
@@ -379,7 +396,10 @@ impl Chip8 {
         let mut rows: Vec<String> = vec![];
 
         for row in self.gfx.chunks(64) {
-            let s: String = row.iter().map(|c| if *c == 1 {'*'} else {' '}).collect();
+            let s: String = row
+                .iter()
+                .map(|c| if *c == 1 { '*' } else { ' ' })
+                .collect();
             rows.push(s.clone());
         }
 

@@ -2,6 +2,7 @@ use std::env;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;
+use std::time::SystemTime;
 
 use easycurses::constants::acs;
 use easycurses::Color::*;
@@ -9,6 +10,9 @@ use easycurses::ColorPair;
 use easycurses::*;
 
 use chip_8::Chip8;
+
+const CYCLES_PER_SECOND: u32 = 500;
+const TICKS_PER_CYCLE: u32 = (1000.0 / CYCLES_PER_SECOND as f64) as u32;
 
 static KEY_MAP: [Input; 16] = [
     Input::Character('x'),
@@ -53,6 +57,8 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_off
     let mut iteration: u32 = 0;
 
     loop {
+        let start = SystemTime::now();
+
         chip8.execute_cycle();
 
         if !process_input(chip8, screen) {
@@ -63,7 +69,15 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_off
             draw_graphics(chip8, screen, x_offset, y_offset, iteration);
         }
 
-        sleep(Duration::from_micros(1200));
+        let elapsed = match start.elapsed() {
+            Ok(e) => e.as_millis(),
+            Err(e) => panic!("time error: {}", e),
+        };
+
+        let time_left = TICKS_PER_CYCLE as u128 - elapsed;
+
+        sleep(Duration::from_millis(time_left as u64));
+
         iteration += 1;
     }
 }
