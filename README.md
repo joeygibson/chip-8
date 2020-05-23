@@ -8,6 +8,7 @@ A [Rust](https://www.rust-lang.org/) implementation of a simple [Chip-8](https:/
 * [Cowgod's Chip-8 Technical Reference](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
 * [An Easy Programming System, Byte Magazine, December, 1978](https://archive.org/stream/byte-magazine-1978-12/1978_12_BYTE_03-12_Life#page/n109/mode/2up)
 * [Mastering Chip-8](http://mattmik.com/files/chip8/mastering/chip8.html)
+* [How to write a Chip-8 Interpreter](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/)
 
 ## Inspirational Projects
 
