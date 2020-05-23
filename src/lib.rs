@@ -63,8 +63,6 @@ impl Chip8 {
         self.process_opcode(opcode);
 
         self.update_timers();
-
-        self.update_program_counter()
     }
 
     fn update_timers(&mut self) {
@@ -81,10 +79,6 @@ impl Chip8 {
         }
     }
 
-    fn update_program_counter(&mut self) {
-        self.pc += 2;
-    }
-
     fn process_opcode(&mut self, opcode: u16) {
         let x = ((opcode & 0x0F00) >> 8) as usize;
         let y = ((opcode & 0x00F0) >> 4) as usize;
@@ -93,8 +87,6 @@ impl Chip8 {
         let nnn = opcode & 0x0FFF;
         let nn = (opcode & 0x00FF) as u8;
         let n = (opcode & 0x000F) as u8;
-
-        eprintln!("opcode: {:#X?}", opcode);
 
         match opcode & 0xF000 {
             0x0000 => {
@@ -108,11 +100,13 @@ impl Chip8 {
                         }
 
                         self.draw_flag = true;
+                        self.pc += 2;
                     }
                     0x000E => {
                         // 0x00EE; returns from subroutine
                         self.sp -= 1;
                         self.pc = self.stack[self.sp as usize];
+                        self.pc += 2;
                     }
                     _ => {
                         // 0x0NNN: Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
@@ -136,6 +130,8 @@ impl Chip8 {
             0x3000 => {
                 // 0x3XNN: Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
                 if self.v[x] == nn {
+                    self.pc += 4;
+                } else {
                     self.pc += 2;
                 }
             }
@@ -143,6 +139,8 @@ impl Chip8 {
             0x4000 => {
                 // 0x4XNN: Skips the next instruction if VX doesn't equal NN. (Usually the next instruction is a jump to skip a code block)
                 if self.v[x] != nn {
+                    self.pc += 4;
+                } else {
                     self.pc += 2;
                 }
             }
@@ -150,6 +148,8 @@ impl Chip8 {
             0x5000 => {
                 // 0x5XY0: Skips the next instruction if VX equals VY. (Usually the next instruction is a jump to skip a code block)
                 if self.v[x] == self.v[y] {
+                    self.pc += 4;
+                } else {
                     self.pc += 2;
                 }
             }
@@ -157,12 +157,14 @@ impl Chip8 {
             0x6000 => {
                 // 0x6XNN: Sets VX to NN.
                 self.v[x] = nn;
+                self.pc += 2;
             }
 
             0x7000 => {
                 // 0x7XNN: Adds NN to VX. (Carry flag is not changed)
                 // self.v[x] += nn;
                 self.v[x] = ((self.v[x] as u16 + nn as u16) & 0xff) as u8;
+                self.pc += 2;
             }
 
             0x8000 => {
@@ -170,18 +172,22 @@ impl Chip8 {
                     0x0 => {
                         // 0x8XY0: Sets VX to the value of VY.
                         self.v[x] = self.v[y];
+                        self.pc += 2;
                     }
                     0x1 => {
                         // 0x8XY1: Sets VX to VX or VY. (Bitwise OR operation)
                         self.v[x] |= self.v[y];
+                        self.pc += 2;
                     }
                     0x2 => {
                         // 0x8XY2: Sets VX to VX and VY. (Bitwise AND operation)
                         self.v[x] &= self.v[y];
+                        self.pc += 2;
                     }
                     0x3 => {
                         // 0x8XY3: Sets VX to VX xor VY.
                         self.v[x] ^= self.v[y];
+                        self.pc += 2;
                     }
                     0x4 => {
                         // 0x8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
@@ -192,6 +198,7 @@ impl Chip8 {
                         }
 
                         self.v[x] = ((self.v[x] as u16 + self.v[y] as u16) & 0xff) as u8;
+                        self.pc += 2;
                     }
                     0x5 => {
                         // 0x8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
@@ -211,11 +218,13 @@ impl Chip8 {
                         };
 
                         self.v[x] = tz;
+                        self.pc += 2;
                     }
                     0x6 => {
                         // 0x8XY6: Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
                         self.v[0xF] = self.v[x] & 0x1;
                         self.v[x] >>= 1;
+                        self.pc += 2;
                     }
                     0x7 => {
                         // 0x8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
@@ -226,11 +235,13 @@ impl Chip8 {
                         }
 
                         self.v[x] = self.v[y] - self.v[x];
+                        self.pc += 2;
                     }
                     0xE => {
                         // 0x8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
                         self.v[0xF] = self.v[x] >> 7;
                         self.v[x] <<= 1;
+                        self.pc += 2;
                     }
                     _ => panic!("unknown 0x8000 opcode: {:#X?}", opcode),
                 }
@@ -239,6 +250,8 @@ impl Chip8 {
             0x9000 => {
                 // 0x9XY0: Skips the next instruction if VX doesn't equal VY. (Usually the next instruction is a jump to skip a code block)
                 if self.v[x] != self.v[y] {
+                    self.pc += 4;
+                } else {
                     self.pc += 2;
                 }
             }
@@ -246,6 +259,7 @@ impl Chip8 {
             0xA000 => {
                 // 0xANNN: sets I to the address NNN
                 self.i = nnn;
+                self.pc += 2;
             }
 
             0xB000 => {
@@ -257,6 +271,7 @@ impl Chip8 {
                 // 0xCXNN: Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
                 let r: u8 = rand::random();
                 self.v[x] = r | nn;
+                self.pc += 2;
             }
 
             0xD000 => {
@@ -270,19 +285,21 @@ impl Chip8 {
 
                     for xline in 0..8 {
                         if (pixel & (0x80 >> xline)) != 0 {
-                            if self.gfx[(vx + xline as u16 + ((vy + yline as u16) * 64)) as usize]
-                                == 1
-                            {
+                            let x_coord = (vx + xline as u16) % 64;
+                            let y_coord = (vy + yline as u16) % 32;
+                            let pixel_index = ((y_coord * 64) + x_coord) as usize;
+
+                            if self.gfx[pixel_index] == 0x01 {
                                 self.v[0xF] = 1;
                             }
 
-                            self.gfx[(vx + xline as u16 + ((vy + yline as u16) * 64)) as usize] ^=
-                                1;
+                            self.gfx[pixel_index] ^= 0x01;
                         }
                     }
                 }
 
                 self.draw_flag = true;
+                self.pc += 2;
             }
 
             0xE000 => {
@@ -290,12 +307,16 @@ impl Chip8 {
                     0x009E => {
                         // 0xEX9E: Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
                         if self.key[vx as usize] != 0 {
+                            self.pc += 4;
+                        } else {
                             self.pc += 2;
                         }
                     }
                     0x00A1 => {
                         // 0xEXA1: Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
                         if self.key[vx as usize] == 0 {
+                            self.pc += 4;
+                        } else {
                             self.pc += 2;
                         }
                     }
@@ -308,6 +329,7 @@ impl Chip8 {
                     0x0007 => {
                         // 0xFX07: Sets VX to the value of the delay timer.
                         self.v[x] = self.delay_timer;
+                        self.pc += 2;
                     }
 
                     0x000A => {
@@ -316,30 +338,32 @@ impl Chip8 {
 
                         for i in 0..16 {
                             if self.key[i] != 0 {
-                                // eprintln!("KEY PRESSED: {}", i);
                                 self.v[x] = i as u8;
                                 key_pressed = true;
                             }
                         }
 
                         if !key_pressed {
-                            // eprintln!("{}", "NO KEY PRESSED!");
-                            // If no key was pressed, we need to keep waiting;
-                            // Since `execute_cycle` increments the program counter
-                            // we will decrememt it here, to cancel out the increment
-                            self.pc -= 2;
+                            // Since we didn't get a key press, we do not upate the
+                            // program counter, so the same instruciton will
+                            // get executed again, effectively waiting forever
+                            // for a keypress
                             return;
                         }
+
+                        self.pc += 2;
                     }
 
                     0x0015 => {
                         // 0xFX15: Sets the delay timer to VX.
                         self.delay_timer = self.v[x];
+                        self.pc += 2;
                     }
 
                     0x0018 => {
                         // 0xFX18: Sets the sound timer to VX.
                         self.sound_timer = self.v[x];
+                        self.pc += 2;
                     }
 
                     0x001E => {
@@ -351,11 +375,13 @@ impl Chip8 {
                         }
 
                         self.i += self.v[x] as u16;
+                        self.pc += 2;
                     }
 
                     0x0029 => {
                         // 0xFX29: Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
                         self.i = (self.v[x] * 0x5) as u16;
+                        self.pc += 2;
                     }
 
                     0x0033 => {
@@ -363,6 +389,7 @@ impl Chip8 {
                         self.memory[self.i as usize] = self.v[x] / 100;
                         self.memory[(self.i + 1) as usize] = self.v[x] / 10 % 10;
                         self.memory[(self.i + 2) as usize] = self.v[x] % 10;
+                        self.pc += 2;
                     }
 
                     0x0055 => {
@@ -370,6 +397,7 @@ impl Chip8 {
                         for i in 0..x {
                             self.memory[(self.i + i as u16) as usize] = self.v[i];
                         }
+                        self.pc += 2;
                     }
 
                     0x0065 => {
@@ -377,6 +405,7 @@ impl Chip8 {
                         for i in 0..x {
                             self.v[i] = self.memory[(self.i + i as u16) as usize];
                         }
+                        self.pc += 2;
                     }
                     _ => panic!("unknown 0xF000 opcode: {:#X?}", opcode),
                 }
