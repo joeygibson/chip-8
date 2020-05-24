@@ -71,7 +71,6 @@ impl Chip8 {
         }
 
         if self.sound_timer > 0 {
-            eprintln!("Sound timer: {}", self.sound_timer);
             if self.sound_timer == 1 {
                 // println!("BEEP!");
             }
@@ -366,7 +365,6 @@ impl Chip8 {
 
                     0x0018 => {
                         // 0xFX18: Sets the sound timer to VX.
-                        eprintln!("Set sound: {}", vx);
                         self.sound_timer = self.v[x];
                         self.pc += 2;
                     }
