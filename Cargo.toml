@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 rand = "0.7"
 easycurses = "0.12.2"
+getopts = "0.2"

@@ -1,5 +1,4 @@
 use std::env;
-use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -8,6 +7,7 @@ use easycurses::constants::acs;
 use easycurses::Color::*;
 use easycurses::ColorPair;
 use easycurses::*;
+use getopts::Options;
 
 use chip_8::Chip8;
 
@@ -37,12 +37,32 @@ const KEY_MAP: [Input; 16] = [
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() == 1 {
-        println!("Usage: chip-8 <filename>");
-        exit(1);
+    let mut opts = Options::new();
+
+    opts.optflag("d", "debug", "display debug info");
+    opts.optflag("h", "help", "display this help message");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => panic!(f.to_string()),
+    };
+
+    if matches.opt_present("h") {
+        print_usage(opts);
+        return;
     }
 
-    println!("Loading {}...", &args[1]);
+    let debug = matches.opt_present("d");
+
+    let input = if !matches.free.is_empty() {
+        matches.free[0].clone()
+    } else {
+        eprintln!("no ROM file given");
+        print_usage(opts);
+        return;
+    };
+
+    println!("Loading {}...", input);
 
     let mut chip8 = Chip8::new();
 
@@ -51,10 +71,22 @@ fn main() {
     let mut screen = setup_screen();
     let (x_offset, y_offset) = get_offsets(&screen);
 
-    run_loop(&mut chip8, &mut screen, x_offset, y_offset);
+    run_loop(&mut chip8, &mut screen, x_offset, y_offset, debug);
 }
 
-pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32) {
+fn print_usage(opts: Options) {
+    let brief = format!("Usage: chip-8 [options] ROM");
+
+    println!("{}", opts.usage(&brief));
+}
+
+pub fn run_loop(
+    chip8: &mut Chip8,
+    screen: &mut EasyCurses,
+    x_offset: i32,
+    y_offset: i32,
+    debug: bool,
+) {
     let mut iteration: u32 = 0;
 
     loop {
@@ -67,7 +99,7 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_off
         }
 
         if chip8.draw_flag {
-            draw_graphics(chip8, screen, x_offset, y_offset, iteration);
+            draw_graphics(chip8, screen, x_offset, y_offset, iteration, debug);
         }
 
         let elapsed = match start.elapsed() {
@@ -115,14 +147,17 @@ fn draw_graphics(
     x_offset: i32,
     y_offset: i32,
     iteration: u32,
+    debug: bool,
 ) {
     let rows = 32;
     let cols = 64;
 
     chip8.draw_flag = false;
 
-    screen.move_rc(0 + x_offset - 1, 0 + y_offset);
-    screen.print(format!("Iteration: {}", iteration));
+    if debug {
+        screen.move_rc(0 + x_offset - 1, 0 + y_offset);
+        screen.print(format!("Iteration: {}", iteration));
+    }
 
     screen.move_rc(0 + x_offset, 0 + y_offset);
     screen.print_char(acs::ulcorner());
