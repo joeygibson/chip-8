@@ -32,6 +32,11 @@ the various features of the Chip-8. I also tested with [PONG](https://github.com
 [PONG2](https://github.com/eejdoowad/Chip8/blob/master/roms/PONG2), and 
 [INVADERS](https://github.com/eejdoowad/Chip8/blob/master/roms/INVADERS).
 
+Here are two sites with public domain ROMs:
+
+* [Zophar's Domain](https://www.zophar.net/pdroms/chip8.html)
+* [dmatlack/chip8](https://github.com/dmatlack/chip8/tree/master/roms)
+
 ## Reference Documents
 
 * [Wikipedia: Chip-8](https://en.wikipedia.org/wiki/CHIP-8)
