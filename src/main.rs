@@ -80,13 +80,7 @@ fn print_usage(opts: Options) {
     println!("{}", opts.usage(&brief));
 }
 
-pub fn run_loop(
-    chip8: &mut Chip8,
-    screen: &mut EasyCurses,
-    x_offset: i32,
-    y_offset: i32,
-    debug: bool,
-) {
+fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_offset: i32, debug: bool) {
     let mut iteration: u32 = 0;
 
     loop {
@@ -111,6 +105,10 @@ pub fn run_loop(
             let time_left = TICKS_PER_CYCLE as u128 - elapsed;
 
             sleep(Duration::from_millis(time_left as u64));
+        }
+
+        if chip8.sound_timer > 0 {
+            screen.beep();
         }
 
         iteration += 1;
@@ -203,7 +201,7 @@ fn draw_graphics(
     screen.refresh();
 }
 
-pub fn setup_screen() -> EasyCurses {
+fn setup_screen() -> EasyCurses {
     let mut screen = EasyCurses::initialize_system().unwrap();
 
     screen.set_cursor_visibility(CursorVisibility::Invisible);

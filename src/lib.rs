@@ -12,7 +12,7 @@ pub struct Chip8 {
     pc: u16,                // program counter
     pub gfx: [u8; 64 * 32], // graphics display
     delay_timer: u8,        // delay timer
-    sound_timer: u8,        // sound timer
+    pub sound_timer: u8,    // sound timer
     stack: [u16; 16],       // program stack
     sp: u8,                 // stack pointer
     pub key: [u8; 16],      // keyboard
@@ -71,6 +71,7 @@ impl Chip8 {
         }
 
         if self.sound_timer > 0 {
+            eprintln!("Sound timer: {}", self.sound_timer);
             if self.sound_timer == 1 {
                 // println!("BEEP!");
             }
@@ -365,6 +366,7 @@ impl Chip8 {
 
                     0x0018 => {
                         // 0xFX18: Sets the sound timer to VX.
+                        eprintln!("Set sound: {}", vx);
                         self.sound_timer = self.v[x];
                         self.pc += 2;
                     }
