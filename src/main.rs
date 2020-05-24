@@ -13,8 +13,9 @@ use chip_8::Chip8;
 
 const CYCLES_PER_SECOND: u32 = 500;
 const TICKS_PER_CYCLE: u32 = (1000.0 / CYCLES_PER_SECOND as f64) as u32;
+const ESC: Input = Input::Character(27 as char);
 
-static KEY_MAP: [Input; 16] = [
+const KEY_MAP: [Input; 16] = [
     Input::Character('x'),
     Input::Character('1'),
     Input::Character('2'),
@@ -74,25 +75,24 @@ pub fn run_loop(chip8: &mut Chip8, screen: &mut EasyCurses, x_offset: i32, y_off
             Err(e) => panic!("time error: {}", e),
         };
 
-        let time_left = TICKS_PER_CYCLE as u128 - elapsed;
+        if elapsed < TICKS_PER_CYCLE as u128 {
+            let time_left = TICKS_PER_CYCLE as u128 - elapsed;
 
-        sleep(Duration::from_millis(time_left as u64));
+            sleep(Duration::from_millis(time_left as u64));
+        }
 
         iteration += 1;
     }
 }
 
 fn process_input(chip8: &mut Chip8, screen: &mut EasyCurses) -> bool {
-    chip8.clear_keys();
-
     if let Some(key) = screen.get_input() {
-        return if key == Input::Character(27 as char) {
+        return if key == ESC {
             false // exit on `Esc`
         } else {
-            for i in 0..16 {
-                if key == KEY_MAP[i as usize] {
-                    chip8.key[i as usize] = 1;
-                    break;
+            for i in 0..16 as usize {
+                if key == KEY_MAP[i] {
+                    chip8.key[i] = 1;
                 }
             }
 

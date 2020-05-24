@@ -72,7 +72,7 @@ impl Chip8 {
 
         if self.sound_timer > 0 {
             if self.sound_timer == 1 {
-                println!("BEEP!");
+                // println!("BEEP!");
             }
 
             self.sound_timer -= 1;
@@ -307,6 +307,8 @@ impl Chip8 {
                     0x009E => {
                         // 0xEX9E: Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
                         if self.key[vx as usize] != 0 {
+                            // since we can't get key released events, let's clear it out
+                            self.key[vx as usize] = 0;
                             self.pc += 4;
                         } else {
                             self.pc += 2;
@@ -317,6 +319,7 @@ impl Chip8 {
                         if self.key[vx as usize] == 0 {
                             self.pc += 4;
                         } else {
+                            self.key[vx as usize] = 0;
                             self.pc += 2;
                         }
                     }
@@ -416,8 +419,8 @@ impl Chip8 {
     }
 
     pub fn clear_keys(&mut self) {
-        for i in 0..16 {
-            self.key[i as usize] = 0;
+        for i in 0..16 as usize {
+            self.key[i] = 0;
         }
     }
 
