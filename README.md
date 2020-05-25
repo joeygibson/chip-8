@@ -1,5 +1,7 @@
 # chip-8
 
+![PONG](./pong.png)
+
 A simple [Rust](https://www.rust-lang.org/) implementation of a 
 [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) emulator.
 
