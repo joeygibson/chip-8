@@ -1,7 +1,5 @@
 # chip-8
 
-![PONG](./pong.png)
-
 A simple [Rust](https://www.rust-lang.org/) implementation of a 
 [Chip-8](https://en.wikipedia.org/wiki/CHIP-8) emulator.
 
@@ -54,3 +52,4 @@ Here are two sites with public domain ROMs:
 * [danirod/chip8](https://github.com/danirod/chip8)
 * [eejdoowad/Chip8](https://github.com/eejdoowad/Chip8)
 * [JamesGriffin/CHIP-8-Emulator](https://github.com/JamesGriffin/CHIP-8-Emulator)
+
