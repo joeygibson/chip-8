@@ -1039,6 +1039,102 @@ mod tests {
         assert!(chip8.draw_flag);
     }
 
+    #[test]
+    fn test_skip_next_instruction_if_key_in_vx_is_pressed_positive() {
+        // 0xEX9E: Skips the next instruction if the key stored in VX is pressed.
+        let key_index: u8 = 0x4;
+        let program: Vec<u8> = vec![0xE4, 0x9E];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+
+        let orig_pc = chip8.pc;
+
+        chip8.v[4] = key_index;
+        chip8.key[key_index as usize] = 1;
+
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_key_in_vx_is_pressed_negative() {
+        // 0xEX9E: Skips the next instruction if the key stored in VX is pressed.
+        let key_index: u8 = 0x4;
+        let program: Vec<u8> = vec![0xE4, 0x9E];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+
+        let orig_pc = chip8.pc;
+
+        chip8.v[4] = key_index;
+
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_key_in_vx_is_not_pressed_positive() {
+        // 0xEXA1: Skips the next instruction if the key stored in VX isn't pressed.
+        let key_index: u8 = 0x4;
+        let program: Vec<u8> = vec![0xE4, 0xA1];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+
+        let orig_pc = chip8.pc;
+
+        chip8.v[4] = key_index;
+
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_key_in_vx_is_not_pressed_negative() {
+        // 0xEXA1: Skips the next instruction if the key stored in VX isn't pressed.
+        let key_index: u8 = 0x4;
+        let program: Vec<u8> = vec![0xE4, 0xA1];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+
+        let orig_pc = chip8.pc;
+
+        chip8.v[4] = key_index;
+        chip8.key[key_index as usize] = 1;
+
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+
+
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
         let mut chip8 = Chip8::new();
 
