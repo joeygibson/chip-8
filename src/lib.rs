@@ -6,16 +6,19 @@ mod errors;
 
 const MEMORY_SIZE: usize = 4096;
 const LOWER_MEMORY_BOUNDARY: usize = 512;
-const GRAPHICS_ARRAY_SIZE: usize = 64 * 32;
+const GRAPHICS_COLUMNS: usize = 64;
+const GRAPHICS_ROWS: usize = 32;
+const GRAPHICS_ARRAY_SIZE: usize = GRAPHICS_COLUMNS * GRAPHICS_ROWS;
 const STACK_SIZE: usize = 16;
 const KEYBOARD_ARRAY_SIZE: usize = 16;
+const REGISTERS: usize = 16;
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
 // 0x200-0xFFF - Program ROM and work RAM
 pub struct Chip8 {
     memory: [u8; MEMORY_SIZE],          // program memory
-    v: [u8; 16],                        // registers
+    v: [u8; REGISTERS],                 // registers
     i: u16,                             // index register
     pc: u16,                            // program counter
     pub gfx: [u8; GRAPHICS_ARRAY_SIZE], // graphics display
@@ -30,16 +33,16 @@ pub struct Chip8 {
 impl Chip8 {
     pub fn new() -> Self {
         let mut chip8 = Chip8 {
-            memory: [0; 4096],
-            v: [0; 16],
+            memory: [0; MEMORY_SIZE],
+            v: [0; REGISTERS],
             i: 0,
             pc: 0x200,
-            gfx: [0; 64 * 32],
+            gfx: [0; GRAPHICS_COLUMNS * GRAPHICS_ROWS],
             delay_timer: 0,
             sound_timer: 0,
-            stack: [0; 16],
+            stack: [0; STACK_SIZE],
             sp: 0,
-            key: [0; 16],
+            key: [0; KEYBOARD_ARRAY_SIZE],
             draw_flag: false,
         };
 
@@ -286,7 +289,8 @@ impl Chip8 {
             }
 
             0xD000 => {
-                // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
+                // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels
+                // and a height of N pixels.
                 let height = n;
 
                 self.v[0xF] = 0;
@@ -296,9 +300,10 @@ impl Chip8 {
 
                     for xline in 0..8 {
                         if (pixel & (0x80 >> xline)) != 0 {
-                            let x_coord = (vx + xline as u16) % 64;
-                            let y_coord = (vy + yline as u16) % 32;
-                            let pixel_index = ((y_coord * 64) + x_coord) as usize;
+                            let x_coord = (vx + xline as u16) % GRAPHICS_COLUMNS as u16;
+                            let y_coord = (vy + yline as u16) % GRAPHICS_ROWS as u16;
+                            let pixel_index =
+                                ((y_coord * GRAPHICS_COLUMNS as u16) + x_coord) as usize;
 
                             if self.gfx[pixel_index] == 0x01 {
                                 self.v[0xF] = 1;
@@ -438,7 +443,7 @@ impl Chip8 {
     pub fn to_string(&self) -> String {
         let mut rows: Vec<String> = vec![];
 
-        for row in self.gfx.chunks(64) {
+        for row in self.gfx.chunks(GRAPHICS_COLUMNS) {
             let s: String = row
                 .iter()
                 .map(|c| if *c == 1 { '*' } else { ' ' })
@@ -477,7 +482,9 @@ fn read_word(memory: [u8; 4096], index: u16) -> u16 {
 mod tests {
     use std::error::Error;
 
-    use crate::{Chip8, GRAPHICS_ARRAY_SIZE, LOWER_MEMORY_BOUNDARY};
+    use crate::{
+        Chip8, GRAPHICS_ARRAY_SIZE, GRAPHICS_COLUMNS, GRAPHICS_ROWS, LOWER_MEMORY_BOUNDARY,
+    };
 
     #[test]
     fn test_load_program() {
@@ -861,6 +868,109 @@ mod tests {
 
         assert_eq!(chip8.v[4], 0xE0);
         assert_eq!(chip8.v[0xF], 1);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_does_not_equal_vy_positive() {
+        // 0x9XY0: Skips the next instruction if VX doesn't equal VY. (Usually the next
+        // instruction is a jump to skip a code block)
+        let program: Vec<u8> = vec![0x94, 0x60];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x23;
+        chip8.v[6] = 0x17;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_does_not_equal_vy_negative() {
+        // 0x9XY0: Skips the next instruction if VX doesn't equal VY. (Usually the next
+        // instruction is a jump to skip a code block)
+        let program: Vec<u8> = vec![0x94, 0x60];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x17;
+        chip8.v[6] = 0x17;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    #[test]
+    fn test_set_i_to_address_nnn() {
+        // 0xANNN: sets I to the address NNN
+        let program: Vec<u8> = vec![0xA0, 0xDC];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.i, 0);
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.i, 0xDC);
+    }
+
+    #[test]
+    fn test_jump_to_nnn_plus_v0() {
+        // 0xBNNN: Jumps to the address NNN plus V0.
+        let program: Vec<u8> = vec![0xB0, 0xDC];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.i, 0);
+
+        chip8.v[0] = 0x17;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, 0xF3);
+    }
+
+    #[test]
+    fn test_draw_sprite_at_x_y_with_height_n() {
+        // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels
+        // and a height of N pixels.
+        let height = 5;
+        let start_x = 10;
+        let start_y = 10;
+
+        let program: Vec<u8> = vec![0xD4, 0x65];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        let how_many_ones = chip8.gfx.iter().filter(|b| **b == 1).count();
+
+        assert_eq!(how_many_ones, 0);
+        // set i to the first sprite in the font set (the number 0)
+        chip8.i = 0;
+        chip8.v[4] = start_x;
+        chip8.v[6] = start_y;
+
+        chip8.execute_cycle();
+
+        let x_coord = (start_x % GRAPHICS_ROWS as u8) as usize;
+        let y_coord = (start_y % GRAPHICS_COLUMNS as u8) as usize;
+
+        let start_pixel = ((y_coord * GRAPHICS_COLUMNS) + x_coord) as usize;
+        let end_pixel = start_pixel + (GRAPHICS_COLUMNS * height);
+
+        let how_many_ones = chip8.gfx[start_pixel..end_pixel]
+            .iter()
+            .filter(|b| **b == 1)
+            .count();
+
+        assert_eq!(how_many_ones, 14);
+        assert!(chip8.draw_flag);
     }
 
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
