@@ -117,7 +117,7 @@ impl Chip8 {
                     _ => {
                         // 0x0NNN: Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
                         self.pc = nnn;
-                    } // _ => panic!("unknown 0x0000 opcode: {:#X?}", opcode),
+                    }
                 }
             }
 
@@ -470,25 +470,60 @@ fn read_word(memory: [u8; 4096], index: u16) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use crate::Chip8;
+    use std::error::Error;
+
+    use crate::{Chip8, GRAPHICS_ARRAY_SIZE, LOWER_MEMORY_BOUNDARY};
 
     #[test]
     fn test_load_program() {
-        let mut chip8 = Chip8::new();
-        let program: Vec<u8> = [0;512].to_vec();
+        let program: Vec<u8> = [0; 512].to_vec();
 
-        let res = chip8.load_program(program);
-
-        assert!(res.is_ok())
+        let chip8 = create_and_load(&program);
+        assert!(chip8.is_ok())
     }
 
     #[test]
     fn test_load_program_that_is_too_big() {
+        let program: Vec<u8> = [0; 8192].to_vec();
+
+        let chip8 = create_and_load(&program);
+
+        assert!(chip8.is_err())
+    }
+
+    #[test]
+    fn test_0x0000_clear_screen() {
+        let program: Vec<u8> = vec![0xF, 0x0];
+
+        let mut chip8 = match create_and_load(&program) {
+            Ok(chip8) => chip8,
+            Err(_) => panic!("loading"),
+        };
+
+        for i in 0..GRAPHICS_ARRAY_SIZE {
+            chip8.gfx[i] = 1;
+        }
+
+        chip8.load_program(program).unwrap();
+        chip8.execute_cycle();
+
+        let all_empty = chip8.gfx.iter().all(|b| *b == 0);
+
+        assert!(all_empty);
+        assert!(chip8.draw_flag);
+        assert_eq!(chip8.pc, (LOWER_MEMORY_BOUNDARY + 2) as u16);
+    }
+
+    #[test]
+    fn test_return_from_subroutine() {
+        // placeholder test
+    }
+
+    fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
         let mut chip8 = Chip8::new();
-        let program: Vec<u8> = [0;8192].to_vec();
 
-        let res = chip8.load_program(program);
+        chip8.load_program(program.clone())?;
 
-        assert!(res.is_err())
+        Ok(chip8)
     }
 }
