@@ -1,22 +1,30 @@
-use std::fs::File;
-use std::io;
-use std::io::Read;
+use std::error::Error;
+
+use errors::ProgramTooLargeError;
+
+mod errors;
+
+const MEMORY_SIZE: usize = 4096;
+const LOWER_MEMORY_BOUNDARY: usize = 512;
+const GRAPHICS_ARRAY_SIZE: usize = 64 * 32;
+const STACK_SIZE: usize = 16;
+const KEYBOARD_ARRAY_SIZE: usize = 16;
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
 // 0x200-0xFFF - Program ROM and work RAM
 pub struct Chip8 {
-    memory: [u8; 4096],     // program memory
-    v: [u8; 16],            // registers
-    i: u16,                 // index register
-    pc: u16,                // program counter
-    pub gfx: [u8; 64 * 32], // graphics display
-    delay_timer: u8,        // delay timer
-    pub sound_timer: u8,    // sound timer
-    stack: [u16; 16],       // program stack
-    sp: u8,                 // stack pointer
-    pub key: [u8; 16],      // keyboard
-    pub draw_flag: bool,    // drawing flag
+    memory: [u8; MEMORY_SIZE],          // program memory
+    v: [u8; 16],                        // registers
+    i: u16,                             // index register
+    pc: u16,                            // program counter
+    pub gfx: [u8; GRAPHICS_ARRAY_SIZE], // graphics display
+    delay_timer: u8,                    // delay timer
+    pub sound_timer: u8,                // sound timer
+    stack: [u16; STACK_SIZE],           // program stack
+    sp: u8,                             // stack pointer
+    pub key: [u8; KEYBOARD_ARRAY_SIZE], // keyboard
+    pub draw_flag: bool,                // drawing flag
 }
 
 impl Chip8 {
@@ -43,14 +51,12 @@ impl Chip8 {
         chip8
     }
 
-    pub fn load_program(&mut self, file_name: &str) -> io::Result<()> {
-        let mut f = File::open(file_name)?;
-        let mut buffer = Vec::new();
+    pub fn load_program(&mut self, program: Vec<u8>) -> Result<(), Box<dyn Error>> {
+        if program.len() + LOWER_MEMORY_BOUNDARY > MEMORY_SIZE {
+            return Err(Box::new(ProgramTooLargeError));
+        }
 
-        // read the whole file
-        f.read_to_end(&mut buffer)?;
-
-        for (i, b) in buffer.iter().enumerate() {
+        for (i, b) in program.iter().enumerate() {
             self.memory[i + 512] = *b;
         }
 
@@ -460,4 +466,29 @@ static CHIP8_FONTSET: [u8; 80] = [
 
 fn read_word(memory: [u8; 4096], index: u16) -> u16 {
     (memory[index as usize] as u16) << 8 | memory[(index + 1) as usize] as u16
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Chip8;
+
+    #[test]
+    fn test_load_program() {
+        let mut chip8 = Chip8::new();
+        let program: Vec<u8> = [0;512].to_vec();
+
+        let res = chip8.load_program(program);
+
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_load_program_that_is_too_big() {
+        let mut chip8 = Chip8::new();
+        let program: Vec<u8> = [0;8192].to_vec();
+
+        let res = chip8.load_program(program);
+
+        assert!(res.is_err())
+    }
 }

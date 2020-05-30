@@ -1,7 +1,7 @@
-use std::env;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::SystemTime;
+use std::{env, io};
 
 use easycurses::constants::acs;
 use easycurses::Color::*;
@@ -10,6 +10,8 @@ use easycurses::*;
 use getopts::Options;
 
 use chip_8::Chip8;
+use std::fs::File;
+use std::io::Read;
 
 const CYCLES_PER_SECOND: u32 = 500;
 const TICKS_PER_CYCLE: u32 = (1000.0 / CYCLES_PER_SECOND as f64) as u32;
@@ -65,13 +67,27 @@ fn main() {
     println!("Loading {}...", input);
 
     let mut chip8 = Chip8::new();
+    let program = match load_file(&args[1]) {
+        Ok(program) => program,
+        Err(e) => panic!("error loading file: {}; {}", &args[1], e),
+    };
 
-    chip8.load_program(&args[1]).unwrap();
+    chip8.load_program(program).unwrap();
 
     let mut screen = setup_screen();
     let (x_offset, y_offset) = get_offsets(&screen);
 
     run_loop(&mut chip8, &mut screen, x_offset, y_offset, debug);
+}
+
+fn load_file(file_name: &str) -> io::Result<Vec<u8>> {
+    let mut f = File::open(file_name)?;
+    let mut buffer = Vec::new();
+
+    // read the whole file
+    f.read_to_end(&mut buffer)?;
+
+    Ok(buffer)
 }
 
 fn print_usage(opts: Options) {
