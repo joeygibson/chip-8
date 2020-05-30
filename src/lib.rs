@@ -168,7 +168,6 @@ impl Chip8 {
 
             0x7000 => {
                 // 0x7XNN: Adds NN to VX. (Carry flag is not changed)
-                // self.v[x] += nn;
                 self.v[x] = ((self.v[x] as u16 + nn as u16) & 0xff) as u8;
                 self.pc += 2;
             }
@@ -491,7 +490,8 @@ mod tests {
     }
 
     #[test]
-    fn test_0x0000_clear_screen() {
+    fn test_clear_screen() {
+        // 0x00E0; clear the screen
         let program: Vec<u8> = vec![0xF, 0x0];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -511,11 +511,13 @@ mod tests {
 
     #[test]
     fn test_return_from_subroutine() {
+        // 0x00EE; returns from subroutine
         // placeholder test
     }
 
     #[test]
     fn test_jump_to_address() {
+        // 0x1NNN: jumps to address NNN
         let program: Vec<u8> = vec![0x10, 0xDC];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -532,6 +534,7 @@ mod tests {
 
     #[test]
     fn test_call_subroutine_at_nnn() {
+        // 0x2NNN: calls subroutine at NNN
         let program: Vec<u8> = vec![0x20, 0xDC];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -547,6 +550,7 @@ mod tests {
 
     #[test]
     fn test_skip_next_instruction_if_vx_equals_nn_positive() {
+        // 0x3XNN: Skips the next instruction if VX equals NN.
         let program: Vec<u8> = vec![0x34, 0x17];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -562,6 +566,7 @@ mod tests {
 
     #[test]
     fn test_skip_next_instruction_if_vx_equals_nn_negative() {
+        // 0x3XNN: Skips the next instruction if VX equals NN.
         let program: Vec<u8> = vec![0x34, 0x17];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -575,8 +580,87 @@ mod tests {
         assert_eq!(chip8.pc, orig_pc + 2);
     }
 
-    
+    #[test]
+    fn test_skip_next_instruction_if_vx_does_not_equal_nn_positive() {
+        // 0x4XNN: Skips the next instruction if VX doesn't equal NN.
+        let program: Vec<u8> = vec![0x44, 0x17];
 
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x23;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_does_not_equal_nn_negative() {
+        // 0x4XNN: Skips the next instruction if VX doesn't equal NN.
+        let program: Vec<u8> = vec![0x44, 0x17];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x17;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_equals_vy_positive() {
+        // 0x5XY0: Skips the next instruction if VX equals VY.
+        let program: Vec<u8> = vec![0x54, 0x60];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x17;
+        chip8.v[6] = 0x17;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_equals_vy_negative() {
+        // 0x5XY0: Skips the next instruction if VX equals VY.
+        let program: Vec<u8> = vec![0x54, 0x60];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x17;
+        chip8.v[6] = 0x23;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    #[test]
+    fn test_set_vx_to_nn() {
+        // 0x6XNN: Sets VX to NN.
+        let program: Vec<u8> = vec![0x64, 0xAA];
+
+        let chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.v[4], 0);
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xAA);
+    }
 
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
         let mut chip8 = Chip8::new();
