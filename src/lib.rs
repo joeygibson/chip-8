@@ -937,13 +937,14 @@ mod tests {
     }
 
     #[test]
-    fn test_draw_sprite_at_x_y_with_height_n() {
+    fn test_draw_sprite_at_x_y_with_height_n_with_no_collision() {
         // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels
         // and a height of N pixels.
         let height = 5;
         let start_x = 10;
         let start_y = 10;
 
+        // Draw the 0 pixel at (10, 10)
         let program: Vec<u8> = vec![0xD4, 0x65];
 
         let mut chip8 = create_and_load(&program).unwrap();
@@ -951,6 +952,8 @@ mod tests {
         let how_many_ones = chip8.gfx.iter().filter(|b| **b == 1).count();
 
         assert_eq!(how_many_ones, 0);
+        assert_eq!(chip8.v[0xF], 0);
+
         // set i to the first sprite in the font set (the number 0)
         chip8.i = 0;
         chip8.v[4] = start_x;
@@ -970,6 +973,69 @@ mod tests {
             .count();
 
         assert_eq!(how_many_ones, 14);
+        assert_eq!(chip8.v[0xF], 0);
+        assert!(chip8.draw_flag);
+    }
+
+    #[test]
+    fn test_draw_sprite_at_x_y_with_height_n_with_collision() {
+        // 0xDXYN: Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels
+        // and a height of N pixels.
+        let height = 5;
+        let start_x = 10;
+        let start_y = 10;
+
+        // Draw the 0 pixel at (10, 10), twice, which should result in
+        // 0 pixels being set to 1, and the `chip8.v[0xF]` should be set to 1,
+        // indicating a collistion
+        let program: Vec<u8> = vec![0xD4, 0x65, 0xD4, 0x65];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        let how_many_ones = chip8.gfx.iter().filter(|b| **b == 1).count();
+
+        assert_eq!(how_many_ones, 0);
+        assert_eq!(chip8.v[0xF], 0);
+
+        // set i to the first sprite in the font set (the number 0)
+        chip8.i = 0;
+        chip8.v[4] = start_x;
+        chip8.v[6] = start_y;
+
+        // This will draw the `0`
+        chip8.execute_cycle();
+
+        let x_coord = (start_x % GRAPHICS_ROWS as u8) as usize;
+        let y_coord = (start_y % GRAPHICS_COLUMNS as u8) as usize;
+
+        let start_pixel = ((y_coord * GRAPHICS_COLUMNS) + x_coord) as usize;
+        let end_pixel = start_pixel + (GRAPHICS_COLUMNS * height);
+
+        let how_many_ones = chip8.gfx[start_pixel..end_pixel]
+            .iter()
+            .filter(|b| **b == 1)
+            .count();
+
+        assert_eq!(how_many_ones, 14);
+        assert_eq!(chip8.v[0xF], 0);
+        assert!(chip8.draw_flag);
+
+        // This will redraw the `0`, which should erase the previous one
+        chip8.execute_cycle();
+
+        let x_coord = (start_x % GRAPHICS_ROWS as u8) as usize;
+        let y_coord = (start_y % GRAPHICS_COLUMNS as u8) as usize;
+
+        let start_pixel = ((y_coord * GRAPHICS_COLUMNS) + x_coord) as usize;
+        let end_pixel = start_pixel + (GRAPHICS_COLUMNS * height);
+
+        let how_many_ones = chip8.gfx[start_pixel..end_pixel]
+            .iter()
+            .filter(|b| **b == 1)
+            .count();
+
+        assert_eq!(how_many_ones, 0);
+        assert_eq!(chip8.v[0xF], 1);
         assert!(chip8.draw_flag);
     }
 
