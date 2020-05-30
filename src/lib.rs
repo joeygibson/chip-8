@@ -487,7 +487,6 @@ mod tests {
         let program: Vec<u8> = [0; 8192].to_vec();
 
         let chip8 = create_and_load(&program);
-
         assert!(chip8.is_err())
     }
 
@@ -495,16 +494,12 @@ mod tests {
     fn test_0x0000_clear_screen() {
         let program: Vec<u8> = vec![0xF, 0x0];
 
-        let mut chip8 = match create_and_load(&program) {
-            Ok(chip8) => chip8,
-            Err(_) => panic!("loading"),
-        };
+        let mut chip8 = create_and_load(&program).unwrap();
 
         for i in 0..GRAPHICS_ARRAY_SIZE {
             chip8.gfx[i] = 1;
         }
 
-        chip8.load_program(program).unwrap();
         chip8.execute_cycle();
 
         let all_empty = chip8.gfx.iter().all(|b| *b == 0);
@@ -518,6 +513,70 @@ mod tests {
     fn test_return_from_subroutine() {
         // placeholder test
     }
+
+    #[test]
+    fn test_jump_to_address() {
+        let program: Vec<u8> = vec![0x10, 0xDC];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.memory[0xDC as usize], 0);
+        chip8.memory[0xDC as usize] = 1;
+        assert_eq!(chip8.memory[0xDC as usize], 1);
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, 0xDC);
+        assert_eq!(chip8.memory[chip8.pc as usize], 1);
+    }
+
+    #[test]
+    fn test_call_subroutine_at_nnn() {
+        let program: Vec<u8> = vec![0x20, 0xDC];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.sp, 0);
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, 0xDC);
+        assert_eq!(chip8.sp, 1);
+        assert_eq!(chip8.stack[0], 512);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_equals_nn_positive() {
+        let program: Vec<u8> = vec![0x34, 0x17];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x17;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 4);
+    }
+
+    #[test]
+    fn test_skip_next_instruction_if_vx_equals_nn_negative() {
+        let program: Vec<u8> = vec![0x34, 0x17];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x23;
+
+        let orig_pc = chip8.pc;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    
+
 
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
         let mut chip8 = Chip8::new();
