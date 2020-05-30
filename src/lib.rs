@@ -233,13 +233,19 @@ impl Chip8 {
                     }
                     0x7 => {
                         // 0x8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                        if self.v[x] > self.v[y] {
+                        if vx > vy {
                             self.v[0xF] = 0;
                         } else {
                             self.v[0xF] = 1;
                         }
 
-                        self.v[x] = self.v[y] - self.v[x];
+                        let tz = if vx > vy {
+                            ((vy as i16 - vx as i16).abs() as u8) - 1
+                        } else {
+                            (vy - vx) as u8
+                        };
+
+                        self.v[x] = tz;
                         self.pc += 2;
                     }
                     0xE => {
@@ -660,6 +666,201 @@ mod tests {
         chip8.execute_cycle();
 
         assert_eq!(chip8.v[4], 0xAA);
+    }
+
+    #[test]
+    fn test_add_nn_to_vx() {
+        // 0x7XNN: Adds NN to VX. (Carry flag is not changed)
+        let program: Vec<u8> = vec![0x74, 0xAA];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0x10;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xBA);
+    }
+
+    #[test]
+    fn test_add_nn_to_vx_wrapping() {
+        // 0x7XNN: Adds NN to VX. (Carry flag is not changed)
+        let program: Vec<u8> = vec![0x74, 0xAA];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x64);
+    }
+
+    #[test]
+    fn test_set_vx_to_value_of_vy() {
+        // 0x8XY0: Sets VX to the value of VY.
+        let program: Vec<u8> = vec![0x84, 0x50];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xDD;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xDD);
+        assert_eq!(chip8.v[5], 0xDD);
+    }
+
+    #[test]
+    fn test_set_vx_to_vx_or_vy() {
+        // 0x8XY1: Sets VX to VX or VY. (Bitwise OR operation)
+        let program: Vec<u8> = vec![0x84, 0x51];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xCC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xFE);
+        assert_eq!(chip8.v[5], 0xCC);
+    }
+
+    #[test]
+    fn test_set_vx_to_vx_and_vy() {
+        // 0x8XY2: Sets VX to VX and VY. (Bitwise AND operation)
+        let program: Vec<u8> = vec![0x84, 0x52];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xCC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x88);
+        assert_eq!(chip8.v[5], 0xCC);
+    }
+
+    #[test]
+    fn test_set_vx_to_vx_xor_vy() {
+        // 0x8XY3: Sets VX to VX xor VY.
+        let program: Vec<u8> = vec![0x84, 0x53];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xCC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x76);
+        assert_eq!(chip8.v[5], 0xCC);
+    }
+
+    #[test]
+    fn test_add_vy_to_vx_with_carry() {
+        // 0x8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+        let program: Vec<u8> = vec![0x84, 0x54];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.v[0xF], 0);
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xCC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x86);
+        assert_eq!(chip8.v[0xF], 1);
+    }
+
+    #[test]
+    fn test_add_vy_to_vx_without_carry() {
+        // 0x8XY4: Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+        let program: Vec<u8> = vec![0x84, 0x54];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.v[0xF], 0);
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0x10;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xCA);
+        assert_eq!(chip8.v[0xF], 0);
+    }
+
+    #[test]
+    fn test_subtract_vy_from_vx_with_borrow() {
+        // 0x8XY5: VY is subtracted from VX. VF is set to 0 when there's a borrow,
+        // and 1 when there isn't.
+        let program: Vec<u8> = vec![0x84, 0x55];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBA;
+        chip8.v[5] = 0xCC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x11);
+        assert_eq!(chip8.v[0xF], 0);
+    }
+
+    #[test]
+    fn test_store_least_significant_bit_of_vx_in_vf_and_shift_vx_right_by_1() {
+        // 0x8XY6: Stores the least significant bit of VX in VF and then shifts VX to
+        // the right by 1.
+        let program: Vec<u8> = vec![0x84, 0x56];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xBB;
+        chip8.v[0xF] = 0x0;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x5D);
+        assert_eq!(chip8.v[0xF], 1);
+    }
+
+    #[test]
+    fn test_set_vx_to_vy_minus_vx_with_borrow() {
+        // 0x8XY7: Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1
+        // when there isn't.
+        let program: Vec<u8> = vec![0x84, 0x57];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xCC;
+        chip8.v[5] = 0xBA;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0x11);
+        assert_eq!(chip8.v[0xF], 0);
+    }
+
+    #[test]
+    fn test_store_most_significant_bit_of_vx_in_vf_and_shift_vx_right_by_1() {
+        // 0x8XYE: Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
+        let program: Vec<u8> = vec![0x84, 0x5E];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 0xF0;
+        chip8.v[0xF] = 0x0;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], 0xE0);
+        assert_eq!(chip8.v[0xF], 1);
     }
 
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
