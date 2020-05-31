@@ -104,7 +104,7 @@ impl Chip8 {
                 match opcode & 0x000F {
                     0x0000 => {
                         // 0x00E0; clear the screen
-                        for i in 0..2048 {
+                        for i in 0..GRAPHICS_ARRAY_SIZE {
                             self.gfx[i as usize] = 0;
                         }
 
@@ -370,6 +370,10 @@ impl Chip8 {
                             return;
                         }
 
+                        for i in 0..KEYBOARD_ARRAY_SIZE {
+                            self.key[i] = 0;
+                        }
+
                         self.pc += 2;
                     }
 
@@ -386,7 +390,8 @@ impl Chip8 {
                     }
 
                     0x001E => {
-                        // 0xFX1E: Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF), and to 0 when there isn't.
+                        // 0xFX1E: Adds VX to I. VF is set to 1 when there is a range overflow
+                        // (I+VX>0xFFF), and to 0 when there isn't.
                         if self.i + self.v[x] as u16 > 0xFFF {
                             self.v[0xF] = 1;
                         } else {
@@ -412,16 +417,20 @@ impl Chip8 {
                     }
 
                     0x0055 => {
-                        // 0xFX55: Stores V0 to VX (including VX) in memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
-                        for i in 0..x {
+                        // 0xFX55: Stores V0 to VX (including VX) in memory starting at address I.
+                        // The offset from I is increased by 1 for each value written, but I
+                        // itself is left unmodified.
+                        for i in 0..=x {
                             self.memory[(self.i + i as u16) as usize] = self.v[i];
                         }
                         self.pc += 2;
                     }
 
                     0x0065 => {
-                        // 0xFX65: Fills V0 to VX (including VX) with values from memory starting at address I. The offset from I is increased by 1 for each value written, but I itself is left unmodified.
-                        for i in 0..x {
+                        // 0xFX65: Fills V0 to VX (including VX) with values from memory
+                        // starting at address I. The offset from I is increased by 1 for
+                        // each value written, but I itself is left unmodified.
+                        for i in 0..=x {
                             self.v[i] = self.memory[(self.i + i as u16) as usize];
                         }
                         self.pc += 2;
@@ -435,7 +444,7 @@ impl Chip8 {
     }
 
     pub fn clear_keys(&mut self) {
-        for i in 0..16 as usize {
+        for i in 0..KEYBOARD_ARRAY_SIZE {
             self.key[i] = 0;
         }
     }
@@ -505,7 +514,7 @@ mod tests {
     #[test]
     fn test_clear_screen() {
         // 0x00E0; clear the screen
-        let program: Vec<u8> = vec![0xF, 0x0];
+        let program: Vec<u8> = vec![0x0, 0xE0];
 
         let mut chip8 = create_and_load(&program).unwrap();
 
@@ -525,7 +534,32 @@ mod tests {
     #[test]
     fn test_return_from_subroutine() {
         // 0x00EE; returns from subroutine
-        // placeholder test
+        let program: Vec<u8> = vec![
+            0x22, 0xA, 0x17, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xEE,
+        ];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.i = LOWER_MEMORY_BOUNDARY as u16;
+
+        assert_eq!(chip8.sp, 0);
+
+        let orig_pc = chip8.pc;
+
+        // the first time through will jump to the beginning
+        // of the subroutine
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, 0x20A);
+        assert_eq!(chip8.sp, 1);
+        assert_eq!(chip8.stack[0], LOWER_MEMORY_BOUNDARY as u16);
+
+        // and the second time through should return from it
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.pc, orig_pc + 2);
+        assert_eq!(chip8.sp, 0);
+        assert_eq!(chip8.memory[chip8.pc as usize], 0x17);
     }
 
     #[test]
@@ -1133,7 +1167,210 @@ mod tests {
         assert_eq!(chip8.pc, orig_pc + 2);
     }
 
+    #[test]
+    fn test_set_vx_to_value_of_delay_timer() {
+        // 0xFX07: Sets VX to the value of the delay timer.
+        let test_value: u8 = 23;
+        let program: Vec<u8> = vec![0xF4, 0x07];
 
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.delay_timer, 0);
+
+        chip8.delay_timer = test_value;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.v[4], test_value);
+    }
+
+    #[test]
+    fn test_wait_for_keypress() {
+        // 0xFX0A: A key press is awaited, and then stored in VX.
+        // (Blocking Operation. All instruction halted until next key event)
+        let key_index: u8 = 0x4;
+        let program: Vec<u8> = vec![0xF4, 0x0A];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.v[4], 0);
+        let orig_pc = chip8.pc;
+
+        // After this, everything should be just as it was, since no key has been pressed.
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.pc, orig_pc);
+
+        // Now set the key, and go again
+        chip8.key[key_index as usize] = 1;
+
+        // After this time, the key index should be in `chip8.v[4]`,
+        // the `chip8.key` array should be all `0`, and `self.pc` should have been advanced
+        chip8.execute_cycle();
+
+        let keys_pressed = chip8.key.iter().filter(|k| **k == 1).count();
+
+        assert_eq!(keys_pressed, 0);
+        assert_eq!(chip8.v[4], key_index);
+        assert_eq!(chip8.pc, orig_pc + 2);
+    }
+
+    #[test]
+    fn test_set_delay_timer_to_vx() {
+        // 0xFX15: Sets the delay timer to VX.
+        let program: Vec<u8> = vec![0xF4, 0x15];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.delay_timer, 0);
+
+        chip8.v[4] = 0x17;
+
+        chip8.execute_cycle();
+
+        // the value is 1 less than what was set, because
+        // the `process_timers` method has been called
+        assert_eq!(chip8.delay_timer, 0x17 - 1);
+    }
+
+    #[test]
+    fn test_set_sound_timer_to_vx() {
+        // 0xFX18: Sets the delay timer to VX.
+        let program: Vec<u8> = vec![0xF4, 0x18];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        assert_eq!(chip8.sound_timer, 0);
+
+        chip8.v[4] = 0x17;
+
+        chip8.execute_cycle();
+
+        // the value is 1 less than what was set, because
+        // the `process_timers` method has been called
+        assert_eq!(chip8.sound_timer, 0x17 - 1);
+    }
+
+    #[test]
+    fn test_add_vx_to_i_with_no_overflow() {
+        // 0xFX1E: Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF),
+        // and to 0 when there isn't.
+        let program: Vec<u8> = vec![0xF4, 0x1E];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.i = 0xA;
+        chip8.v[4] = 0x17;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.i, 0x21);
+        assert_eq!(chip8.v[0xF], 0);
+    }
+
+    #[test]
+    fn test_add_vx_to_i_with_overflow() {
+        // 0xFX1E: Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF),
+        // and to 0 when there isn't.
+        let program: Vec<u8> = vec![0xF4, 0x1E];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.i = 0xFFA;
+        chip8.v[4] = 0xA;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.i, 0x1004);
+        assert_eq!(chip8.v[0xF], 1);
+    }
+
+    #[test]
+    fn test_set_i_to_location_of_sprite_for_character_in_vx() {
+        // 0xFX29: Sets I to the location of the sprite for the character in VX.
+        // Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+        let program: Vec<u8> = vec![0xF4, 0x29];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        chip8.v[4] = 2;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.i, 10);
+    }
+
+    #[test]
+    fn test_store_binary_coded_decimal_representation_of_vx() {
+        // 0xFX33: Stores the binary-coded decimal representation of VX, with the most
+        // significant of three digits at the address in I, the middle digit at I plus 1,
+        // and the least significant digit at I plus 2.
+        let program: Vec<u8> = vec![0xF4, 0x33];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        let first_i = LOWER_MEMORY_BOUNDARY as u16;
+        chip8.i = first_i;
+        chip8.v[4] = 0xDC;
+
+        chip8.execute_cycle();
+
+        assert_eq!(chip8.memory[first_i as usize], 2);
+        assert_eq!(chip8.memory[(first_i + 1) as usize], 2);
+        assert_eq!(chip8.memory[(first_i + 2) as usize], 0);
+    }
+
+    #[test]
+    fn test_store_v0_to_vx_in_memory_starting_at_address_i() {
+        // 0xFX55: Stores V0 to VX (including VX) in memory starting at address I.
+        // The offset from I is increased by 1 for each value written, but I itself
+        // is left unmodified.
+
+        let program: Vec<u8> = vec![0xF4, 0x55];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        let first_i = LOWER_MEMORY_BOUNDARY as u16;
+        chip8.i = first_i;
+
+        for i in 0..5 {
+            chip8.v[i as usize] = i + 1;
+        }
+
+        chip8.execute_cycle();
+
+        for i in 0..5 {
+            assert_eq!(chip8.memory[LOWER_MEMORY_BOUNDARY + i as usize], i + 1);
+        }
+    }
+
+    #[test]
+    fn test_fill_v0_to_vx_with_values_from_memory_starting_at_address_i() {
+        // 0xFX65: Fills V0 to VX (including VX) with values from memory
+        // starting at address I. The offset from I is increased by 1 for
+        // each value written, but I itself is left unmodified.
+        let program: Vec<u8> = vec![0xF4, 0x65];
+
+        let mut chip8 = create_and_load(&program).unwrap();
+
+        let first_i = (LOWER_MEMORY_BOUNDARY + 2) as u16;
+        chip8.i = first_i;
+
+        for i in 0..5 {
+            chip8.memory[(first_i + i) as usize] = i as u8 + 1;
+        }
+
+        chip8.execute_cycle();
+
+        for i in 0..5 {
+            assert_eq!(chip8.v[i as usize], i + 1);
+        }
+    }
 
     fn create_and_load(program: &Vec<u8>) -> Result<Chip8, Box<dyn Error>> {
         let mut chip8 = Chip8::new();
