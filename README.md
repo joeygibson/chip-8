@@ -1,5 +1,8 @@
 # chip-8
 
+![Build Status](https://github.com/joeygibson/chip-8/workflows/build/badge.svg)
+![Release Status](https://github.com/joeygibson/chip-8/workflows/release/badge.svg)
+
 ![PONG](./pong.png)
 
 A simple [Rust](https://www.rust-lang.org/) implementation of a 
